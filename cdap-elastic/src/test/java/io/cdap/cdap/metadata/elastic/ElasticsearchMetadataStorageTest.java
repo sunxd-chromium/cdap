@@ -380,4 +380,39 @@ public class ElasticsearchMetadataStorageTest extends MetadataStorageTest {
     Assert.assertEquals(expectedOffset, c.getOffset());
     Assert.assertEquals(expectedPageSize, c.getLimit());
   }
+
+  @Test
+  public void testSearchReturnsRequiredTerms() throws IOException {
+    MetadataStorage mds = getMetadataStorage();
+    MutationOptions options = MutationOptions.builder().setAsynchronous(false).build();
+
+    List<MetadataRecord> records = IntStream.range(0, 3).boxed().map(i -> new MetadataRecord(
+        MetadataEntity.ofDataset("ns" + i, "ds" + i),
+        new Metadata(MetadataScope.USER, tags("tag", "t" + i), props("p", "v" + i)))).collect(Collectors.toList());
+    mds.batch(records.stream().map(r -> new Update(r.getEntity(), r.getMetadata())).collect(Collectors.toList()),
+        options);
+
+    // does it exclude datasets that do not contain the required t1 term?
+    SearchRequest request = SearchRequest.of("+t1 t2").build();
+    SearchResponse response = mds.search(request);
+    Assert.assertEquals(1, response.getResults().size());
+
+    // does it include datasets when you use a wildcard?
+    SearchRequest request2 = SearchRequest.of("+t*").build();
+    SearchResponse response2 = mds.search(request2);
+    Assert.assertEquals(3, response2.getResults().size());
+
+    // does it accept multiple required terms?
+    SearchRequest request3 = SearchRequest.of("+tag +t1").build();
+    SearchResponse response3 = mds.search(request3);
+    Assert.assertEquals(1, response3.getResults().size());
+
+    // can you require terms using key:value syntax?
+    SearchRequest request4 = SearchRequest.of("+p:v1").build();
+    SearchResponse response4 = mds.search(request4);
+    Assert.assertEquals(1, response4.getResults().size());
+
+    // clean up
+    mds.batch(records.stream().map(MetadataRecord::getEntity).map(Drop::new).collect(Collectors.toList()), options);
+  }
 }

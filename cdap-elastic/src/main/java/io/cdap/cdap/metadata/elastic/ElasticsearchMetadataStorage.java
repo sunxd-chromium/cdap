@@ -34,6 +34,9 @@ import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.metadata.Cursor;
 import io.cdap.cdap.common.metadata.MetadataConflictException;
 import io.cdap.cdap.common.metadata.MetadataUtil;
+import io.cdap.cdap.common.metadata.QueryParser;
+import io.cdap.cdap.common.metadata.QueryTerm;
+import io.cdap.cdap.common.metadata.QueryTerm.Qualifier;
 import io.cdap.cdap.common.service.Retries;
 import io.cdap.cdap.common.service.RetryStrategies;
 import io.cdap.cdap.common.service.RetryStrategy;
@@ -1010,21 +1013,30 @@ public class ElasticsearchMetadataStorage implements MetadataStorage {
     // all terms must occur in the text field as selected by the scope in the search request.
     String textField = request.getScope() == null ? TEXT_FIELD : request.getScope().name().toLowerCase();
 
-    // split the query into its terms and iterate over all terms
-    Iterable<String> terms = Splitter.on(SPACE_SEPARATOR_PATTERN)
-      .omitEmptyStrings().trimResults().split(request.getQuery());
-    List<QueryBuilder> termQueries = new ArrayList<>();
-    for (String term : terms) {
-      termQueries.add(createTermQuery(term, textField, request));
+    // split the query into its parsed terms and create corresponding QueryBuilders for each
+    Map<QueryBuilder, QueryTerm> termQueries = new HashMap<>();
+    for (QueryTerm queryTerm : QueryParser.parse(request.getQuery())) {
+      termQueries.put(createTermQuery(queryTerm.getTerm(), textField, request), queryTerm);
     }
     if (termQueries.isEmpty()) {
       return QueryBuilders.matchAllQuery();
     }
-    if (termQueries.size() == 1) {
-      return termQueries.get(0);
+    //populate boolQuery clauses based on corresponding queryTerm qualifier
+    BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+    for (QueryBuilder queryBuilder : termQueries.keySet()) {
+      if (termQueries.get(queryBuilder).getQualifier() == Qualifier.REQUIRED) {
+        boolQuery.must(queryBuilder);
+      } else {
+        boolQuery.should(queryBuilder);
+      }
     }
-    BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().minimumShouldMatch(1);
-    termQueries.forEach(boolQuery::should);
+
+    //if optional terms are the only terms available, require at least one
+    if (!boolQuery.should().isEmpty() && boolQuery.must().isEmpty()) {
+      boolQuery = boolQuery.minimumShouldMatch(1);
+    } else {
+      boolQuery = boolQuery.minimumShouldMatch(0);
+    }
     return boolQuery;
   }
 
