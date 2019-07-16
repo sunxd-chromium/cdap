@@ -503,8 +503,7 @@ class HydratorPlusPlusNodeConfigCtrl {
       .then((res) => {
         vm.validating = false;
         if (res.errors.length > 0) {
-          let errors = res.errors.map(err => err.message);
-          vm.validationErrors = errors;
+          vm.validationErrors = res.errors.map(err => err.message);
         } else {
           const outputSchema = this.myHelpers.objectQuery(res, 'spec', 'outputSchema');
           const portSchemas = this.myHelpers.objectQuery(res, 'spec', 'portSchemas');
