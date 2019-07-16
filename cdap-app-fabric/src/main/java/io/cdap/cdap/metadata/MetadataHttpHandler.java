@@ -41,6 +41,7 @@ import io.cdap.cdap.spi.metadata.MetadataCodec;
 import io.cdap.cdap.spi.metadata.MetadataConstants;
 import io.cdap.cdap.spi.metadata.MetadataKind;
 import io.cdap.cdap.spi.metadata.MetadataMutation;
+import io.cdap.cdap.spi.metadata.MetadataMutationCodec;
 import io.cdap.cdap.spi.metadata.MutationOptions;
 import io.cdap.cdap.spi.metadata.ScopedName;
 import io.cdap.cdap.spi.metadata.ScopedNameOfKind;
@@ -98,9 +99,11 @@ public class MetadataHttpHandler extends AbstractHttpHandler {
     .registerTypeAdapter(Metadata.class, new MetadataCodec())
     .registerTypeAdapter(ScopedName.class, new ScopedNameTypeAdapter())
     .registerTypeAdapter(ScopedNameOfKind.class, new ScopedNameOfKindTypeAdapter())
+    .registerTypeAdapter(MetadataMutation.class, new MetadataMutationCodec())
     .create();
   private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
   private static final Type SET_STRING_TYPE = new TypeToken<Set<String>>() { }.getType();
+  private static final Type LIST_MUTATION_TYPE = new TypeToken<List<MetadataMutation>>() { }.getType();
   private static final MutationOptions SYNC = MutationOptions.builder().setAsynchronous(false).build();
   private static final MutationOptions ASYNC = MutationOptions.builder().setAsynchronous(true).build();
 
@@ -274,6 +277,15 @@ public class MetadataHttpHandler extends AbstractHttpHandler {
     responder.sendString(HttpResponseStatus.OK, "Remove Metadata mutation applied successfully.");
   }
 
+  @POST
+  @Path("/metadata-internals/batch")
+  public void batch(FullHttpRequest request, HttpResponder responder) throws IOException {
+    List<MetadataMutation> mutations =
+      GSON_INTERNAL.fromJson(request.content().toString(StandardCharsets.UTF_8), LIST_MUTATION_TYPE);
+    metadataAdmin.applyMutations(mutations, SYNC);
+    responder.sendString(HttpResponseStatus.OK, "List of Metadata mutations applied successfully.");
+  }
+
   @GET
   @Path("/metadata/search")
   public void searchMetadata(HttpRequest request, HttpResponder responder,
@@ -375,13 +387,13 @@ public class MetadataHttpHandler extends AbstractHttpHandler {
       builder.setLimit(limit);
       if (cursorRequested || (numCursors != null && numCursors > 0)) {
         if (sort == null) {
-          throw new IllegalArgumentException("Cursors may only be requested in conjunction with sorting");
+          throw new IllegalArgumentException("Specify a sort order when requesting a cursor");
         }
         builder.setCursorRequested(true);
       }
       if (cursor != null) {
         if (sort == null) {
-          throw new IllegalArgumentException("Cursors are only allowed in conjunction with sorting");
+          throw new IllegalArgumentException("Specify a sort order when passing in a cursor");
         }
         builder.setCursor(cursor);
       }
