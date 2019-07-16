@@ -90,7 +90,7 @@ function JoinTypeWidgetView({ value, inputSchema, onChange, classes }) {
   const checkBoxChange = (event) => {
     setInputs(
       inputs.map((input) => {
-        if (input.name === event.target.value) {
+        if (input.key === event.target.value) {
           input.selected = !input.selected;
         }
         return input;
@@ -102,24 +102,25 @@ function JoinTypeWidgetView({ value, inputSchema, onChange, classes }) {
     const initialModel = value.split(',').map((input) => input.trim());
     if (!value) {
       setInputs(
-        inputSchema.map((input) => {
-          return { name: input.name, selected: false };
+        inputSchema.map((input, i) => {
+          return { name: input.name, key: `${i}-${input.name}`, selected: false };
         })
       );
     }
     if (initialModel.length === inputSchema.length) {
       setJoinType('Inner');
       setInputs(
-        inputSchema.map((input) => {
-          return { name: input.name, selected: true };
+        inputSchema.map((input, i) => {
+          return { name: input.name, key: `${i}-${input.name}`, selected: true };
         })
       );
     } else {
       setJoinType('Outer');
       setInputs(
-        inputSchema.map((input) => {
+        inputSchema.map((input, i) => {
           return {
             name: input.name,
+            key: `${i}-${input.name}`,
             selected: initialModel.indexOf(input.name) !== -1 ? true : false,
           };
         })
@@ -153,14 +154,14 @@ function JoinTypeWidgetView({ value, inputSchema, onChange, classes }) {
               </If>
               <div>
                 {inputs &&
-                  inputs.map((input) => {
+                  inputs.map((input, i) => {
                     return (
                       <FormControlLabel
                         className={classes.checkbox}
                         control={
                           <Checkbox
                             checked={input.selected}
-                            value={input.name}
+                            value={`${i}-${input.name}`}
                             color="primary"
                             onChange={checkBoxChange}
                           />
