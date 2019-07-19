@@ -12,16 +12,25 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
-*/
+ */
 
-import React from 'react';
-import LineageSummary from 'components/FieldLevelLineage/v2/LineageSummary';
-import { Provider } from 'components/FieldLevelLineage/v2/Context/FllContext';
+const parser = require('./config/parser.js');
+const memoize = require('lodash/memoize');
 
-export default function FllExpt(props) {
-  return (
-    <Provider {...props}>
-      <LineageSummary />
-    </Provider>
-  );
+async function extractCDAPConfig() {
+  let cdapConfig;
+
+  try {
+    cdapConfig = await parser.extractConfig('cdap');
+  } catch (e) {
+    return Promise.reject(e);
+  }
+
+  return cdapConfig;
 }
+
+const getCDAPConfig = memoize(extractCDAPConfig);
+
+module.exports = {
+  getCDAPConfig,
+};

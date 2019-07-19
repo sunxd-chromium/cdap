@@ -12,16 +12,27 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
-*/
+ */
 
-import React from 'react';
-import LineageSummary from 'components/FieldLevelLineage/v2/LineageSummary';
-import { Provider } from 'components/FieldLevelLineage/v2/Context/FllContext';
+const programsResolver = {
+  ApplicationDetail: {
+    programs: async (parent, args) => {
+      const programs = parent.programs;
+      const type = args.type;
 
-export default function FllExpt(props) {
-  return (
-    <Provider {...props}>
-      <LineageSummary />
-    </Provider>
-  );
-}
+      if (type === null || type === undefined) {
+        return programs;
+      } else {
+        const typePrograms = programs.filter(function(program) {
+          return program.type == type;
+        });
+
+        return typePrograms;
+      }
+    },
+  },
+};
+
+module.exports = {
+  programsResolver,
+};

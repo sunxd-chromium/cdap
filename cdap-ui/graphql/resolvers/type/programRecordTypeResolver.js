@@ -12,16 +12,25 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
-*/
+ */
 
-import React from 'react';
-import LineageSummary from 'components/FieldLevelLineage/v2/LineageSummary';
-import { Provider } from 'components/FieldLevelLineage/v2/Context/FllContext';
+const programsTypeResolver = {
+  ProgramRecord: {
+    async __resolveType(parent) {
+      switch (parent.type) {
+        case 'Mapreduce':
+          return 'MapReduce';
+        case 'Workflow':
+          return 'Workflow';
+        case 'Spark':
+          return 'Spark';
+        default:
+          return null;
+      }
+    },
+  },
+};
 
-export default function FllExpt(props) {
-  return (
-    <Provider {...props}>
-      <LineageSummary />
-    </Provider>
-  );
-}
+module.exports = {
+  programsTypeResolver,
+};
